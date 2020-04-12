@@ -23,7 +23,7 @@ abstract class IntOrNullGenerator(id: String, inputIds: MutableList<String>) : I
 
 
     override fun process(input: MutableList<Int>?): Int? {
-        Thread.sleep(Random.nextInt(10, 100).toLong())
+        Thread.sleep(Random.nextInt(1000, 2000).toLong())
         return value.next()
     }
 
@@ -89,25 +89,30 @@ class CyclicSequence(id: String, inputIds: MutableList<String>, private val seq:
 
 class ModSummator(id: String, inputIds: MutableList<String>, private val mod: Int) : IntOrNullProcessor(id, inputIds) {
     override fun process(input: MutableList<Int>?): Int? {
-        return if (input == null || input.isEmpty())
+        return if (input.isNullOrEmpty())
             throw ProcessorException()
         else
             input.reduce { acc, i -> (acc + i) % mod } % mod
     }
 }
 
-class Max(id: String, inputIds: MutableList<String>) : IntOrNullProcessor(id, inputIds) {
+class Maximizator(id: String, inputIds: MutableList<String>) : IntOrNullProcessor(id, inputIds) {
     override fun process(input: MutableList<Int>?): Int? {
-        if (null == input || input.isEmpty()) {
+        if (input.isNullOrEmpty()) {
             throw ProcessorException()
         } else {
             return input.max()
         }
-
     }
 }
 
-
-fun main() {
-    print(ModSummator("11", mutableListOf(), 11).process(mutableListOf()))
+class Median(id: String, inputIds: MutableList<String>) : IntOrNullProcessor(id, inputIds) {
+    override fun process(input: MutableList<Int>?): Int {
+        if (input.isNullOrEmpty()) {
+            throw ProcessorException()
+        } else {
+            val sorted = input.sorted()
+            return (sorted[sorted.size - 1 / 2] + sorted[sorted.size / 2]) / 2
+        }
+    }
 }

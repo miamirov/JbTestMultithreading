@@ -29,5 +29,4 @@ public interface Processor<T> {
 
     T process(List<T> input) throws ProcessorException;
 
-
 }
