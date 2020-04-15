@@ -16,7 +16,7 @@ class RunnerMultithreadingImpl<T> : Runner<T>, CycleChecker<T>() {
         } else {
             checkCyclesOrUnexpectedProcessors(processors)
             val results = processors.associate {
-                it.id to Collections.synchronizedList(listOf<T>())
+                it.id to mutableListOf<T>()
             }
             val locks = processors.associate { it.id to ReentrantLock() }
             val iterationToStop = AtomicInteger(maxIterations - 1)
@@ -24,16 +24,19 @@ class RunnerMultithreadingImpl<T> : Runner<T>, CycleChecker<T>() {
             val exception: AtomicReference<ProcessorException?> = AtomicReference(null)
 
             fun needToStop(): Boolean {
-                return (processedForIteration[iterationToStop.get()].get() == processors.size || exception.get() != null)
+                val stop = iterationToStop.get()
+                return (stop == -1 || processedForIteration[stop].get() == processors.size || exception.get() != null)
             }
 
             fun workWithLock(processor: Processor<T>) {
                 val id = processor.id
-                val curList = results[id]!!
-                val iteration = curList.size + 1
-                if (iterationToStop.get() >= iteration && processor.inputIds.all { results[it]!!.size > iteration }) {
+                val curList: MutableList<T> = results[id]!!
+                val iteration = curList.size
+                if (iterationToStop.get() >= iteration && (processor.inputIds.isEmpty() || processor.inputIds.all { results[it]!!.size > iteration })) {
                     try {
-                        val result = processor.process(processor.inputIds.map { results[it]!![iteration] })
+                        val result = processor.process(processor.inputIds.map {
+                            results[it]!![iteration]
+                        })
                         if (result != null) {
                             curList.add(result)
                             processedForIteration[iteration].incrementAndGet()
@@ -47,23 +50,29 @@ class RunnerMultithreadingImpl<T> : Runner<T>, CycleChecker<T>() {
             }
 
             val onFinish = Phaser(maxThreads + 1)
-            repeat(maxThreads) {
-                thread {
-                    mainLoop@ while (true) {
-                        for (processor in processors) {
-                            if (needToStop()) {
-                                break@mainLoop
-                            }
-                            val lock = locks[processor.id]!!
-                            if (lock.tryLock()) {
-                                workWithLock(processor)
-                                lock.unlock()
-                            }
+
+            fun onThread() {
+                mainLoop@ while (true) {
+                    for (processor in processors) {
+                        if (needToStop()) {
+                            break@mainLoop
+                        }
+                        val lock = locks[processor.id]!!
+                        if (lock.tryLock()) {
+                            workWithLock(processor)
+                            lock.unlock()
                         }
                     }
-                    onFinish.arrive()
+                }
+                onFinish.arrive()
+            }
+
+            repeat(maxThreads - 1) {
+                thread {
+                    onThread()
                 }
             }
+            onThread()
             onFinish.arriveAndAwaitAdvance()
             val exc = exception.get()
             if (exc != null) {
@@ -75,3 +84,4 @@ class RunnerMultithreadingImpl<T> : Runner<T>, CycleChecker<T>() {
         }
     }
 }
+

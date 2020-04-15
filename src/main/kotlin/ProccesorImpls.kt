@@ -23,7 +23,6 @@ abstract class IntOrNullGenerator(id: String, inputIds: MutableList<String>) : I
 
 
     override fun process(input: MutableList<Int>?): Int? {
-        Thread.sleep(Random.nextInt(1000, 2000).toLong())
         return value.next()
     }
 
@@ -65,7 +64,7 @@ class SequenceEndsWithNulls(id: String, inputIds: MutableList<String>, private v
     IntOrNullGenerator(id, inputIds) {
 
     override fun getSequence(): Sequence<Int?> {
-        return sequence<Int?> {
+        return sequence {
             yieldAll(seq)
             while (true) {
                 yield(null)
@@ -112,7 +111,22 @@ class Median(id: String, inputIds: MutableList<String>) : IntOrNullProcessor(id,
             throw ProcessorException()
         } else {
             val sorted = input.sorted()
-            return (sorted[sorted.size - 1 / 2] + sorted[sorted.size / 2]) / 2
+            return (sorted[(sorted.size - 1) / 2] + sorted[sorted.size / 2]) / 2
         }
     }
 }
+
+class ExceptionGenerator(id: String, inputIds: MutableList<String>) : IntOrNullProcessor(id, inputIds) {
+    override fun process(input: MutableList<Int>?): Int {
+        throw ProcessorException("id: $id")
+    }
+}
+
+class ProccesorWithTime(id: String, inputIds: MutableList<String>) :
+    IntOrNullProcessor(id, inputIds) {
+    override fun process(input: MutableList<Int>?): Int {
+        Thread.sleep(10)
+        return 1
+    }
+}
+
